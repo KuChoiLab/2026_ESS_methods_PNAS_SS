@@ -1,6 +1,6 @@
 # 2026_ESS_methods_PNAS_SS
-## WES
-### Variant calling
+## [WES]
+## Variant calling
 **1. Detection of somatic SNVs and INDELs**
 
 The somatic mutation calling pipeline was adapted based on sample type. For matched tumor-normal pairs, single-nucleotide variants (SNVs) were called with Mutect2, while small insertions and deletions (indels) were identified using a consensus of both MuTect2 and Strelka2.
@@ -76,7 +76,7 @@ gatk HaplotypeCaller \
 The following code is used to run FFPolish.
 
 ```
-# FFPolish version : 
+# FFPolish version : 0.1.0
 # ffpolish is available upon installation of FFPolish
 
 # Filter FFPE artifacts from VCF
@@ -137,3 +137,185 @@ cnvkit.py batch ${tumor_bam} \
   --output-reference ${output_reference_cnn} \
   --output-dir ${output_directory}
 ```
+
+## Downstream analysis
+
+**1. Identifying mutational signatures**
+
+The following code is used to run deconstructSigs.
+
+```
+# deconstructSigs version: 
+# Convert mutation data to deconstructSigs input format
+sigs.input <- mut.to.sigs.input(
+  mut.ref = ${mutation_dataframe},
+  sample.id = "Sample",
+  chr = "chr",
+  pos = "pos",
+  ref = "ref",
+  alt = "alt"
+)
+
+# Determine signature contributions for a sample
+output <- whichSignatures(
+  tumor.ref = sigs.input,
+  signatures.ref = signatures.nature2013,
+  sample.id = ${sample_id},
+  contexts.needed = TRUE,
+  tri.counts.method = 'default'
+)
+
+# Visualize results
+plotSignatures(output, sub = ${sample_name})
+makePie(output, sub = ${sample_name})
+```
+
+**2. Identifying driver genes**
+
+The following code is used to run MutPanning.
+
+```
+# MutPanning version: 
+java -Xmx8G -classpath ${mutpanning_dir}/commons-math3-3.6.1.jar:${mutpanning_dir}/jdistlib-0.4.5-bin.jar:${mutpanning_dir} MutPanning \
+  "${root_directory}" \
+  "${maf_file}" \
+  "${sample_annotation_file}" \
+  "${hg19_directory}"
+```
+
+**3. Identifying recurrent CNV**
+
+The following code is used to run GISTIC2.
+
+```
+# GISTIC2 version: 
+gistic2 \
+  -b ${output_directory} \
+  -seg ${segmentation_file} \
+  -refgene ${refgene_mat_file} \
+  -genegistic  \
+  -smallmem  \
+  -broad  \
+  -brlen  \
+  -conf  \
+  -armpeel  \
+  -savegene  \
+  -gcm extreme
+```
+
+## [RNA-seq]
+
+## Identifying fusions
+
+**1. Fusion calling**
+
+The following code is used to run STAR-Fusion.
+
+```
+# STAR-Fusion version: 1.15.0
+STAR-Fusion \
+  --genome_lib_dir ${ctat_genome_lib_dir} \
+  --left_fq ${read1_fastq} \
+  --right_fq ${read2_fastq} \
+  --output_dir ${output_directory} \
+  --CPU ${threads}
+```
+
+The following code is used to run Arriba.
+
+```
+# Arriba version: 2.5.0
+arriba \
+  -x /dev/stdin \
+  -o ${output_fusions_tsv} \
+  -O ${output_discarded_tsv} \
+  -a ${assembly_fasta} \
+  -g ${annotation_gtf} \
+  -b ${blacklist_tsv} \
+  -k ${known_fusions_tsv} \
+  -t ${known_fusions_tsv} \
+  -p ${protein_domains_gff3}
+
+# Visualize fusions 
+Rscript draw_fusions.R \
+  --fusions=${output_fusions_tsv} \
+  --alignments=${aligned_bam} \
+  --output=${output_pdf} \
+  --annotation=${annotation_gtf} \
+  --cytobands=${cytobands_tsv} \
+  --proteinDomains=${protein_domains_gff3}
+```
+
+## Transcriptomic profiling of ESS
+
+**1. Differential Expression analysis**
+
+The following code is used to run DESeq2.
+
+```
+# DESeq2 version: 1.38.3
+# Create DESeq2 dataset from count matrix
+dds <- DESeqDataSetFromMatrix(
+  countData = ${count_matrix},
+  colData = ${sample_metadata},
+  design = ~ ${design_formula}
+)
+
+# Run differential expression analysis
+dds <- DESeq(dds)
+
+# Extract results
+res <- results(dds, name = ${coefficient_name})
+
+# Or with log fold change shrinkage (recommended)
+res <- lfcShrink(dds, coef = ${coefficient_name}, type = "apeglm")
+
+```
+
+**2. Gene set enrichment analysis**
+
+The following code is used to run fgsea.
+
+```
+# fgsea version: 1.38.3
+# Run fgsea with ranked gene list
+fgseaRes <- fgsea(
+  pathways = ${pathway_list},
+  stats = ${ranked_stats},
+  minSize = 15,
+  maxSize = 500
+)
+```
+
+## [WGS]
+
+**1. Identifying Complex Structural Variations**
+
+```
+# JaBbA version: 
+jba ${junctions_file} ${coverage_file} \
+  --seg ${segmentation_rds} \
+  --blacklist.junctions ${blacklist_junctions} \
+  --field ${coverage_field} \
+  --ploidy ${ploidy} \
+  --purity ${purity} \
+  --outdir ${output_directory} \
+  --name ${sample_name}
+```
+
+## Reference
+
+1. McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome Res. 2010;20(9):1297–1303.
+2. Kim S, Scheffler K, Halpern AL, et al. Strelka2: fast and accurate calling of germline and somatic variants. Nat Methods. 2018;15(8):591–594.
+3. Shen R, Seshan VE. FACETS: allele-specific copy number and clonal heterogeneity analysis tool for high-throughput DNA sequencing. Nucleic Acids Res. 2016;44(16):e131.
+4. Favero F, Joshi T, Marquard AM, et al. Sequenza: allele-specific copy number and mutation profiles from tumor sequencing data. Ann Oncol. 2015;26(1):64-70.
+5. Talevich E, Shain AH, Botton T, Bastian BC. CNVkit: Genome-Wide Copy Number Detection and Visualization from Targeted DNA Sequencing. PLoS Comput Biol. 2016;12(4):e1004873.
+6. Rosenthal R, McGranahan N, Herrero J, Taylor BS, Swanton C. DeconstructSigs: delineating mutational processes in single tumors distinguishes DNA repair deficiencies and patterns of carcinoma evolution. Genome Biol. 2016;17:31.
+7. Dietlein F, Weghorn D, Taylor-Weiner A, et al. Identification of cancer driver genes based on nucleotide context. Nat Genet. 2020;52(2):208-218.
+8. Mermel CH, Schumacher SE, Hill B, Meyerson ML, Beroukhim R, Getz G. GISTIC2.0 facilitates sensitive and confident localization of the targets of focal somatic copy-number alteration in human cancers. Genome Biol. 2011;12(4):R41.
+9. Haas BJ, Dobin A, Li B, Stransky N, Pochet N, Regev A. Accuracy assessment of fusion transcript detection via read-mapping and de novo fusion transcript assembly-based methods. Genome Biol. 2019;20(1):213.
+10. Uhrig S, Ellermann J, Walther T, et al. Accurate and efficient detection of gene fusions from RNA sequencing data. Genome Res. 2021;31(3):448-460.
+11. Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biol. 2014;15(12):550.
+12. Korotkevich G, Sukhov V, Sergushichev A. Fast gene set enrichment analysis. bioRxiv. Published online June 20, 2016.
+13. 
+
