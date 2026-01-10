@@ -291,6 +291,8 @@ fgseaRes <- fgsea(
 
 **1. Identifying Complex Structural Variations**
 
+The following code is used to run JaBbA.
+
 ```
 # JaBbA version: 
 jba ${junctions_file} ${coverage_file} \
