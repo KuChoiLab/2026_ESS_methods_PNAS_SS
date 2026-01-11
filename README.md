@@ -197,14 +197,16 @@ gistic2 \
   -b ${output_directory} \
   -seg ${segmentation_file} \
   -refgene ${refgene_mat_file} \
-  -genegistic  \
-  -smallmem  \
-  -broad  \
-  -brlen  \
-  -conf  \
-  -armpeel  \
-  -savegene  \
-  -gcm extreme
+  -ta 0.1 \
+  -td 0.1 \
+  -qvt 0.25 \
+  -js 10 \
+  -conf 0.75 \
+  -cap 2.0 \
+  -broad 1 \
+  -genegistic 1 \
+  -v 30 \
+  -rx 0
 ```
 
 ## [RNA-seq]
@@ -266,6 +268,30 @@ dds <- DESeqDataSetFromMatrix(
   colData = ${sample_metadata},
   design = ~ ${design_formula}
 )
+
+# batch correction
+library(RUVSeq)
+counts = counts(dds)
+genes = rownames(counts)
+idx = genes
+seq = newSeqExpressionSet(as.matrix(counts[idx,]))
+type=sample$type
+design <- model.matrix(~type, data=ShortRead::pData(seq))
+y <- DGEList(counts = counts(seq), group = type)
+y <- calcNormFactors(y, method = "upperquartile")
+y <- estimateGLMCommonDisp(y, design)
+y <- estimateGLMTagwiseDisp(y, design)
+fit <- glmFit(y, design)
+res <- residuals(fit, type = "deviance")
+seqRUVr <- RUVr(seq, idx, k = 2, res)
+seqRUVr_df <- as.data.frame(ShortRead::pData(seqRUVr))
+colnames(seqRUVr_df) <- c( "pc1", "pc2")
+
+dds$RUVrPC1 = seqRUVr_df$pc1
+dds$RUVrPC2 = seqRUVr_df$pc2
+coldata <- colData(dds)
+
+design(dds) = ~ RUVrPC1 + RUVrPC2 + type
 
 # Run differential expression analysis
 dds <- DESeq(dds)
