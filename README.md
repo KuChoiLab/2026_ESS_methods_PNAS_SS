@@ -88,7 +88,11 @@ ffpolish filter \
   ${ffpe_tumor_bam}
 ```
 
-**4. Detection of somatic CNVs**
+**4. Detection of CNVs**
+
+The CNV calling pipeline was adapted based on the sample type. For matched tumor–normal pairs, copy number variations were inferred using both FACETS and Sequenza. 
+
+For unmatched tumor samples, CNVs were identified using CNVkit.
 
 The following code is used to run FACETS.
    
@@ -208,6 +212,8 @@ gistic2 \
 ## Identifying fusions
 
 **1. Fusion calling**
+
+Fusion calling was performed using both STAR-Fusion and Arriba to identify gene fusion events from RNA-seq data.
 
 The following code is used to run STAR-Fusion.
 
