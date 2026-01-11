@@ -192,7 +192,7 @@ java -Xmx8G -classpath ${mutpanning_dir}/commons-math3-3.6.1.jar:${mutpanning_di
 The following code is used to run GISTIC2.
 
 ```
-# GISTIC2 version: 
+# GISTIC2 version: 8.3
 gistic2 \
   -b ${output_directory} \
   -seg ${segmentation_file} \
