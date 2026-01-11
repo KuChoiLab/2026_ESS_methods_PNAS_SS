@@ -294,7 +294,7 @@ fgseaRes <- fgsea(
 The following code is used to run JaBbA.
 
 ```
-# JaBbA version: 
+# JaBbA version: 1.0
 jba ${junctions_file} ${coverage_file} \
   --seg ${segmentation_rds} \
   --blacklist.junctions ${blacklist_junctions} \
